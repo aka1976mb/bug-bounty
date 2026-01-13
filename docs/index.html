@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0Din Bug Bounty Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f6f8fa;
+            color: #24292e;
+            margin: 0;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        .metric-card {
+            background-color: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .metric-card .value {
+            font-size: 2.5rem;
+            font-weight: 600;
+        }
+        .metric-card .label {
+            font-size: 1rem;
+            color: #586069;
+        }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .chart-container {
+            background-color: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 1.5rem;
+        }
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            color: #586069;
+        }
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>0Din Bug Bounty Program Dashboard</h1>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div id="total-reports" class="value">...</div>
+                <div class="label">Total Reports</div>
+            </div>
+            <div class="metric-card">
+                <div id="resolved-reports" class="value">...</div>
+                <div class="label">Resolved Reports</div>
+            </div>
+            <div class="metric-card">
+                <div id="total-bounties" class="value">...</div>
+                <div class="label">Total Bounties Paid</div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-container">
+                <canvas id="severityChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="vulnTypeChart"></canvas>
+            </div>
+        </div>
+
+        <footer>
+            Last updated: <span id="last-updated">...</span>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            fetch('./data.json')
+                .then(response => response.json())
+                .then(data => {
+                    // Populate metric cards
+                    document.getElementById('total-reports').textContent = data.totalReports;
+                    document.getElementById('resolved-reports').textContent = data.resolvedReports;
+                    document.getElementById('total-bounties').textContent = `$${data.totalBounties.toLocaleString()}`;
+                    document.getElementById('last-updated').textContent = new Date(data.lastUpdated).toLocaleString();
+
+                    // Severity Chart
+                    const severityCtx = document.getElementById('severityChart').getContext('2d');
+                    new Chart(severityCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(data.severityCounts),
+                            datasets: [{
+                                data: Object.values(data.severityCounts),
+                                backgroundColor: ['#d73a49', '#f66a0a', '#ffd33d', '#0366d6'],
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'top' },
+                                title: { display: true, text: 'Reports by Severity' }
+                            }
+                        }
+                    });
+
+                    // Vulnerability Type Chart
+                    const vulnTypeCtx = document.getElementById('vulnTypeChart').getContext('2d');
+                    new Chart(vulnTypeCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(data.vulnerabilityTypes),
+                            datasets: [{
+                                label: 'Count',
+                                data: Object.values(data.vulnerabilityTypes),
+                                backgroundColor: '#28a745',
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false },
+                                title: { display: true, text: 'Vulnerability Types' }
+                            }
+                        }
+                    });
+                })
+                .catch(error => console.error('Error fetching dashboard data:', error));
+        });
+    </script>
+</body>
+</html>

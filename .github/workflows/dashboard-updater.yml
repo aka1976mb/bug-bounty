@@ -1,0 +1,89 @@
+name: Update Public Dashboard Data
+
+on:
+  workflow_dispatch: # Allows manual triggering
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at midnight UTC
+
+jobs:
+  update_dashboard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Allows creating and updating files
+      issues: read   # Allows reading issue data
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Generate dashboard data
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const fs = require('fs');
+
+            // Fetch all issues
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'all', // Include open and closed issues
+            });
+
+            // Initialize metrics
+            let totalReports = 0;
+            let resolvedReports = 0;
+            let totalBounties = 0;
+            const severityCounts = {
+              'severity-critical': 0,
+              'severity-high': 0,
+              'severity-medium': 0,
+              'severity-low': 0,
+            };
+            const vulnerabilityTypes = {}; // e.g., { 'prompt-injection': 5, 'data-exposure': 3 }
+
+            for (const issue of issues) {
+              // We'll assume any issue with a 'security' label is a report
+              if (!issue.labels.some(label => label.name === 'security')) {
+                continue;
+              }
+
+              totalReports++;
+
+              // Count resolved reports
+              if (issue.state === 'closed') {
+                resolvedReports++;
+              }
+
+              // Sum up bounties from titles (e.g., "[BOUNTY] ... - $500")
+              const titleMatch = issue.title.match(/\$(\d+)/);
+              if (titleMatch) {
+                totalBounties += parseInt(titleMatch[1], 10);
+              }
+
+              // Count severity and vulnerability types from labels
+              for (const label of issue.labels) {
+                if (severityCounts.hasOwnProperty(label.name)) {
+                  severityCounts[label.name]++;
+                }
+                if (label.name.startsWith('vuln-')) { // A convention for vulnerability type labels
+                  const type = label.name.replace('vuln-', '');
+                  vulnerabilityTypes[type] = (vulnerabilityTypes[type] || 0) + 1;
+                }
+              }
+            }
+
+            const data = {
+              totalReports,
+              resolvedReports,
+              totalBounties,
+              severityCounts,
+              vulnerabilityTypes,
+              lastUpdated: new Date().toISOString(),
+            };
+
+            // Ensure the /docs directory exists
+            if (!fs.existsSync('./docs')) {
+              fs.mkdirSync('./docs');
+            }
+            fs.writeFileSync('./docs/data.json', JSON.stringify(data, null, 2));
