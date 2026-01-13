@@ -19,7 +19,9 @@ function New-0DinBounty {
         [string]$Description
     )
         $body = "**Bounty Announcement**`n`n$Description`n`n**Reward:** $$$Amount`n**Deadline:** $(Get-Date (Get-Date).AddDays(30) -Format 'yyyy-MM-dd')`n**Scope:** See SCOPE.md`n**Submission:** Use security report template"
-        $body | gh issue create --title "[BOUNTY] $Title - $$$Amount" --body-file - --label "bounty"
+        $fullTitle = "[BOUNTY] $Title - $$$Amount"
+        $arguments = @('issue', 'create', '--title', $fullTitle, '--body-file', '-', '--label', 'bounty')
+        $body | & gh $arguments
 }
 function Update-0DinIssue {
     param(
